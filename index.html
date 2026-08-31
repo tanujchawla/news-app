@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AK's News Scroll</title>
+
+    <link rel="manifest" href="./manifest.json">
+
+    <meta name="theme-color" content="#111111">
+
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="News Scroll">
+
+    <link rel="apple-touch-icon" href="./icons/icon-192.png">
+    
+    <!-- Premium Editorial Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            /* --- Light Editorial Theme --- */
+            --bg: #F9F9FB;
+            --text-main: #111111;
+            --text-sub: #666666;
+            --card-bg: #FFFFFF;
+            --border: #E5E5EA;
+            --accent: #000000;
+            --glow-1: #007AFF; 
+            --glow-2: #00C6FF;
+            --glass: rgba(255, 255, 255, 0.92);
+            --card-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+            --anim-speed: 150s; 
+            
+            --font-head: 'Playfair Display', Georgia, serif;
+            --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .dark-mode {
+            /* --- Dark Premium Theme --- */
+            --bg: #0A0A0A;
+            --text-main: #F5F5F5; 
+            --text-sub: #999999;  
+            --card-bg: #121212;   
+            --border: #2A2A2A;
+            --accent: #FFFFFF;
+            --glass: rgba(10, 10, 10, 0.92);
+            --card-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        body.reading-mode {
+            /* --- Authentic Sepia Reading Mode --- */
+            --bg: #F4ECD8;
+            --text-main: #2B2520;
+            --text-sub: #6B5E51;
+            --card-bg: #FCF9F2;
+            --border: #E6DFCD;
+            --accent: #2B2520;
+            --glass: rgba(244, 236, 216, 0.95);
+            --card-shadow: 0 4px 20px rgba(43, 37, 32, 0.05);
+        }
+
+        * {
+            box-sizing: border-box; margin: 0; padding: 0;
+            font-family: var(--font-ui);
+            -webkit-tap-highlight-color: transparent; 
+        }
+
+        body {
+            background-color: var(--bg); color: var(--text-main);
+            overflow: hidden; display: flex; flex-direction: column;
+            /* height: 100vh; */
+            height: 100dvh;
+            transition: background-color 0.5s ease, color 0.5s ease;
+        }
+
+        /* --- Header & Branding --- */
+        header {
+            /* position: fixed; top: 0; */
+            padding-top: calc(16px + env(safe-area-inset-top));
+            left: 0; width: 100%;
+            z-index: 100; padding: 16px 24px;
+            background: var(--glass);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .brand { 
+            display: flex; align-items: center; user-select: none; gap: 8px;
+        }
+
+        .brand-ak {
+            font-family: var(--font-head);
+            font-size: 28px; font-style: italic; font-weight: 900;
+            color: var(--text-main);
+            line-height: 1;
+        }
+
+        .brand-text {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--text-sub);
+            border-left: 1px solid var(--border); padding-left: 8px;
+        }
+
+        .controls { display: flex; gap: 6px; }
+
+        .icon-btn {
+            background: transparent; border: 1px solid transparent;
+            color: var(--text-main); width: 36px; height: 36px;
+            border-radius: 50%; font-size: 15px; cursor: pointer; user-select: none;
+            transition: all 0.2s ease; display: flex; align-items: center; justify-content: center;
+        }
+        .icon-btn:hover { background: var(--border); }
+        .icon-btn:active { transform: scale(0.9); }
+        .icon-btn.active { background: var(--text-main); color: var(--bg); }
+
+        /* --- Settings Panel (Minimalist SaaS Style) --- */
+        #settingsDropdown {
+            position: fixed; top: 70px; right: 24px;
+            width: calc(100% - 48px); max-width: 380px; max-height: calc(100vh - 100px);
+            overflow-y: auto; background: var(--card-bg); z-index: 90;
+            padding: 24px; border-radius: 16px; border: 1px solid var(--border);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+            transform: translateY(-10px) scale(0.98); opacity: 0; visibility: hidden;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #settingsDropdown.open { transform: translateY(0) scale(1); opacity: 1; visibility: visible; }
+
+        .setting-section { margin-bottom: 24px; }
+        .setting-section h4 { 
+            font-size: 11px; text-transform: uppercase; color: var(--text-sub); 
+            margin-bottom: 12px; font-weight: 700; letter-spacing: 1px;
+        }
+
+        /* Dropdowns */
+        .multi-select { position: relative; width: 100%; user-select: none; }
+        .select-header {
+            background: transparent; border: 1px solid var(--border); padding: 12px 16px;
+            border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center; color: var(--text-main);
+            transition: border-color 0.2s;
+        }
+        .select-header:hover { border-color: var(--text-sub); }
+        
+        .select-content {
+            display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 100%;
+            background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px;
+            max-height: 300px; overflow-y: auto; z-index: 10;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08); padding: 8px 0;
+        }
+        .select-content.show { display: block; }
+        .checkbox-label {
+            display: flex; align-items: center; padding: 10px 16px; font-size: 13px;
+            cursor: pointer; gap: 12px; transition: background 0.2s; color: var(--text-main);
+            font-weight: 500;
+        }
+        .checkbox-label:hover { background: var(--bg); }
+        .checkbox-label input { width: 16px; height: 16px; accent-color: var(--text-main); cursor: pointer; }
+
+        /* Palette Grid */
+        .palette-grid { display: flex; gap: 12px; }
+        .swatch {
+            width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+            border: 2px solid transparent; transition: transform 0.2s;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+        }
+        .swatch:active { transform: scale(0.85); }
+        .swatch.selected { border-color: var(--text-main); transform: scale(1.15); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+
+        /* Speed Dial */
+        .radio-dial-container {
+            width: 100%; height: 44px; background: var(--bg);
+            border-radius: 8px; border: 1px solid var(--border);
+            position: relative; display: flex; align-items: center; padding: 0 12px; overflow: hidden;
+        }
+        .radio-dial-bg {
+            position: absolute; top: 0; left: 12px; right: 12px; bottom: 0;
+            background: repeating-linear-gradient(90deg, var(--border) 0px, var(--border) 1px, transparent 1px, transparent 10px);
+            opacity: 0.6; pointer-events: none;
+        }
+        .radio-dial-container input[type="range"] {
+            -webkit-appearance: none; width: 100%; background: transparent; z-index: 2; outline: none;
+        }
+        .radio-dial-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 28px; width: 6px;
+            background: var(--text-main); border-radius: 4px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary { 
+            width: 100%; padding: 14px; border-radius: 8px; border: none; 
+            background: var(--text-main); color: var(--bg); font-size: 14px; 
+            font-weight: 600; cursor: pointer; margin-top: 8px; transition: opacity 0.2s;
+        }
+        .btn-primary:active { opacity: 0.8; }
+        
+        .btn-outline { 
+            width: 100%; padding: 14px; border-radius: 8px; border: 1px solid var(--border); 
+            background: transparent; color: var(--text-main); font-size: 13px; 
+            font-weight: 600; cursor: pointer; margin-top: 12px; transition: background 0.2s;
+        }
+        .btn-outline:hover { background: var(--bg); }
+
+        /* --- Separate RSS Page --- */
+        #rssPage {
+            /* position: fixed; top: 0; */
+            padding-top: env(safe-area-inset-top);
+            left: 0; width: 100%; height: 100%;
+            background: var(--bg); z-index: 200;
+            transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex; flex-direction: column;
+        }
+        #rssPage.open { transform: translateX(0); }
+        .rss-header {
+            padding: 16px 24px; display: flex; align-items: center; gap: 16px;
+            background: var(--glass); border-bottom: 1px solid var(--border);
+        }
+        .back-btn { background: none; border: none; font-size: 20px; color: var(--text-main); cursor: pointer; font-weight: bold;}
+        .rss-content { padding: 24px; flex: 1; overflow-y: auto; max-width: 600px; margin: 0 auto; width: 100%;}
+        .rss-input-group { display: flex; gap: 12px; margin-bottom: 24px; }
+        .rss-input-group input { 
+            flex: 1; padding: 14px 16px; border-radius: 8px; border: 1px solid var(--border); 
+            background: var(--card-bg); color: var(--text-main); outline:none; font-size: 14px;
+        }
+        .rss-input-group button { 
+            padding: 14px 24px; border-radius: 8px; border: none; 
+            background: var(--text-main); color: var(--bg); font-weight: 600; cursor: pointer;
+        }
+        .rss-list { display: flex; flex-direction: column; gap: 12px; }
+        .rss-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 16px; background: var(--card-bg); border-radius: 8px; 
+            border: 1px solid var(--border); font-size: 14px; font-weight: 500;
+        }
+        .rss-item button { 
+            background: transparent; color: #E02424; border: 1px solid #E02424; 
+            padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;
+        }
+
+        /* --- Scrolling Engine --- */
+        main {
+            flex: 1; margin-top: 70px; padding: 24px;
+            overflow: hidden; position: relative;
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%);
+            max-width: 680px; margin-left: auto; margin-right: auto; width: 100%;
+        }
+
+        #scroller {
+            position: absolute; width: calc(100% - 48px);
+            display: flex; flex-direction: column; gap: 32px; padding-bottom: 50vh;
+        }
+
+        #scroller:hover { animation-play-state: paused; }
+
+        .auto-scroll { animation: scrollLoop var(--anim-speed) linear infinite; }
+        @keyframes scrollLoop { 0% { transform: translateY(100vh); } 100% { transform: translateY(-100%); } }
+
+        /* --- Premium Editorial Cards --- */
+        .card-wrapper {
+            position: relative; z-index: 1;
+            --card-g1: var(--glow-1); --card-g2: var(--glow-2);
+        }
+        
+        .card-wrapper.type-Good { --card-g1: #10B981; --card-g2: #059669; }
+        .card-wrapper.type-Bad { --card-g1: #EF4444; --card-g2: #DC2626; }
+
+        /* Subtle, luxurious backlit glow */
+        .card-wrapper::before {
+            content: ''; position: absolute; inset: -2px;
+            background: linear-gradient(135deg, var(--card-g1), var(--card-g2));
+            border-radius: 14px; z-index: -1; filter: blur(12px);
+            opacity: 0.15; transition: opacity 0.3s;
+        }
+        .dark-mode .card-wrapper::before { opacity: 0.25; }
+
+        .news-card {
+            background: var(--card-bg); border-radius: 12px; overflow: hidden;
+            display: flex; flex-direction: column; border: 1px solid var(--border); 
+            box-shadow: var(--card-shadow); transition: transform 0.2s;
+        }
+        .news-card:active { transform: scale(0.99); }
+        
+        /* Media */
+        .card-media { 
+            width: 100%; height: 220px; object-fit: cover; 
+            display: block; border-bottom: 1px solid var(--border);
+            background: #000;
+        }
+        iframe.card-media { border: none; border-bottom: 1px solid var(--border); }
+
+        /* Text Body */
+        .card-body { padding: 24px; text-decoration: none; display: block; }
+        
+        .card-body h3 { 
+            font-family: var(--font-head); font-size: 22px; font-weight: 700; 
+            line-height: 1.3; margin-bottom: 12px; color: var(--text-main); 
+        }
+        
+        .card-body p { 
+            font-size: 15px; color: var(--text-sub); line-height: 1.6; 
+            margin-bottom: 24px; font-weight: 400; 
+        }
+        
+        /* Single Line Meta Design */
+        .card-meta-line { 
+            display: flex; align-items: center; gap: 8px; 
+            border-top: 1px solid var(--border); padding-top: 16px; 
+            font-size: 11px; color: var(--text-main); font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .meta-badge { white-space: nowrap; flex-shrink: 0; display: flex; align-items: center; gap: 4px; }
+        .meta-source { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; }
+        .meta-date-time { white-space: nowrap; flex-shrink: 0; color: var(--text-sub); }
+        .meta-dot { color: var(--border); font-size: 14px; flex-shrink: 0; }
+
+        .sentiment-good { color: #10B981; } 
+        .sentiment-bad { color: #EF4444; } 
+        .sentiment-neutral { color: var(--text-sub); }
+        
+        #loader { 
+            text-align: center; color: var(--text-sub); font-weight: 500; 
+            margin-top: 50%; font-size: 14px; letter-spacing: 1px; text-transform: uppercase;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <span class="brand-ak">AK</span>
+            <span class="brand-text">News Scroll</span>
+        </div>
+        <div class="controls">
+            <button class="icon-btn" id="readModeBtn" title="Reading Mode">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+            </button>
+            <button class="icon-btn" id="themeToggleBtn" title="Theme">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            </button>
+            <button class="icon-btn" id="settingsToggleBtn" title="Settings">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </button>
+        </div>
+    </header>
+
+    <div id="settingsDropdown">
+        <div class="setting-section">
+            <h4>Topics</h4>
+            <div class="multi-select">
+                <div class="select-header" onclick="toggleDropdown('topicDropdown')">Select Topics <span>▼</span></div>
+                <div class="select-content" id="topicDropdown">
+                    <label class="checkbox-label"><input type="checkbox" class="topic-cb" value="https://news.google.com/rss" checked> Top Stories</label>
+                    <label class="checkbox-label"><input type="checkbox" class="topic-cb" value="https://news.google.com/rss/headlines/section/topic/WORLD"> World</label>
+                    <label class="checkbox-label"><input type="checkbox" class="topic-cb" value="https://news.google.com/rss/headlines/section/topic/NATION"> Nation (Local)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="topic-cb" value="https://news.google.com/rss/headlines/section/topic/BUSINESS"> Business</label>
+                    <label class="checkbox-label"><input type="checkbox" class="topic-cb" value="https://news.google.com/rss/headlines/section/topic/TECHNOLOGY"> Technology</label>
+                    <label class="checkbox-label"><input type="checkbox" class="topic-cb" value="https://news.google.com/rss/headlines/section/topic/ENTERTAINMENT"> Entertainment</label>
+                    <label class="checkbox-label"><input type="checkbox" class="topic-cb" value="https://news.google.com/rss/headlines/section/topic/SPORTS"> Sports</label>
+                    <label class="checkbox-label"><input type="checkbox" class="topic-cb" value="https://news.google.com/rss/headlines/section/topic/SCIENCE"> Science</label>
+                    <label class="checkbox-label"><input type="checkbox" class="topic-cb" value="https://news.google.com/rss/headlines/section/topic/HEALTH"> Health</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="setting-section">
+            <h4>Regions & Languages</h4>
+            <div class="multi-select">
+                <div class="select-header" onclick="toggleDropdown('regionDropdown')">Select Regions <span>▼</span></div>
+                <div class="select-content" id="regionDropdown">
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=en-US&gl=US&ceid=US:en" checked> 🇺🇸 USA (English)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=es-419&gl=US&ceid=US:es-419"> 🇺🇸 USA (Spanish)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=en-IN&gl=IN&ceid=IN:en"> 🇮🇳 India (English)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=hi&gl=IN&ceid=IN:hi"> 🇮🇳 India (Hindi)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=ta&gl=IN&ceid=IN:ta"> 🇮🇳 India (Tamil)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=te&gl=IN&ceid=IN:te"> 🇮🇳 India (Telugu)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=ml&gl=IN&ceid=IN:ml"> 🇮🇳 India (Malayalam)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=mr&gl=IN&ceid=IN:mr"> 🇮🇳 India (Marathi)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=bn&gl=IN&ceid=IN:bn"> 🇮🇳 India (Bengali)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=en-GB&gl=GB&ceid=GB:en"> 🇬🇧 United Kingdom</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=en-AU&gl=AU&ceid=AU:en"> 🇦🇺 Australia</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=en-CA&gl=CA&ceid=CA:en"> 🇨🇦 Canada (English)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=fr-CA&gl=CA&ceid=CA:fr"> 🇨🇦 Canada (French)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=en-IE&gl=IE&ceid=IE:en"> 🇮🇪 Ireland</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=en-NZ&gl=NZ&ceid=NZ:en"> 🇳🇿 New Zealand</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=en-ZA&gl=ZA&ceid=ZA:en"> 🇿🇦 South Africa</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=en-SG&gl=SG&ceid=SG:en"> 🇸🇬 Singapore</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=fr&gl=FR&ceid=FR:fr"> 🇫🇷 France</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=de&gl=DE&ceid=DE:de"> 🇩🇪 Germany</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=de&gl=AT&ceid=AT:de"> 🇦🇹 Austria</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=de&gl=CH&ceid=CH:de"> 🇨🇭 Switzerland (German)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=fr&gl=CH&ceid=CH:fr"> 🇨🇭 Switzerland (French)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=fr&gl=BE&ceid=BE:fr"> 🇧🇪 Belgium (French)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=nl&gl=BE&ceid=BE:nl"> 🇧🇪 Belgium (Dutch)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=nl&gl=NL&ceid=NL:nl"> 🇳🇱 Netherlands</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=it&gl=IT&ceid=IT:it"> 🇮🇹 Italy</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=es&gl=ES&ceid=ES:es"> 🇪🇸 Spain</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=es-419&gl=MX&ceid=MX:es-419"> 🇲🇽 Mexico</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=es-419&gl=AR&ceid=AR:es-419"> 🇦🇷 Argentina</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=es-419&gl=CL&ceid=CL:es-419"> 🇨🇱 Chile</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=es-419&gl=CO&ceid=CO:es-419"> 🇨🇴 Colombia</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=es-419&gl=PE&ceid=PE:es-419"> 🇵🇪 Peru</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=es-419&gl=VE&ceid=VE:es-419"> 🇻🇪 Venezuela</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=es-419&gl=CU&ceid=CU:es-419"> 🇨🇺 Cuba</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=pt-BR&gl=BR&ceid=BR:pt-419"> 🇧🇷 Brazil</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=pt-PT&gl=PT&ceid=PT:pt-150"> 🇵🇹 Portugal</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=ja&gl=JP&ceid=JP:ja"> 🇯🇵 Japan</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=zh-CN&gl=CN&ceid=CN:zh-Hans"> 🇨🇳 China</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=zh-TW&gl=TW&ceid=TW:zh-Hant"> 🇹🇼 Taiwan</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=zh-HK&gl=HK&ceid=HK:zh-Hant"> 🇭🇰 Hong Kong</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=ko&gl=KR&ceid=KR:ko"> 🇰🇷 South Korea</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=id&gl=ID&ceid=ID:id"> 🇮🇩 Indonesia</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=en-MY&gl=MY&ceid=MY:en"> 🇲🇾 Malaysia</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=en-PH&gl=PH&ceid=PH:en"> 🇵🇭 Philippines</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=vi&gl=VN&ceid=VN:vi"> 🇻🇳 Vietnam</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=th&gl=TH&ceid=TH:th"> 🇹🇭 Thailand</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=en-PK&gl=PK&ceid=PK:en"> 🇵🇰 Pakistan</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=en-NG&gl=NG&ceid=NG:en"> 🇳🇬 Nigeria</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=en-KE&gl=KE&ceid=KE:en"> 🇰🇪 Kenya</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=ar&gl=EG&ceid=EG:ar"> 🇪🇬 Egypt</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=ar&gl=SA&ceid=SA:ar"> 🇸🇦 Saudi Arabia</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=ar&gl=AE&ceid=AE:ar"> 🇦🇪 UAE</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=ar&gl=LB&ceid=LB:ar"> 🇱🇧 Lebanon</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=ru&gl=RU&ceid=RU:ru"> 🇷🇺 Russia</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=uk&gl=UA&ceid=UA:uk"> 🇺🇦 Ukraine (Ukrainian)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=ru&gl=UA&ceid=UA:ru"> 🇺🇦 Ukraine (Russian)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=pl&gl=PL&ceid=PL:pl"> 🇵🇱 Poland</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=cs&gl=CZ&ceid=CZ:cs"> 🇨🇿 Czech Republic</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=ro&gl=RO&ceid=RO:ro"> 🇷🇴 Romania</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=hu&gl=HU&ceid=HU:hu"> 🇭🇺 Hungary</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=el&gl=GR&ceid=GR:el"> 🇬🇷 Greece</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=tr&gl=TR&ceid=TR:tr"> 🇹🇷 Turkey</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=he&gl=IL&ceid=IL:he"> 🇮🇱 Israel</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=sv&gl=SE&ceid=SE:sv"> 🇸🇪 Sweden</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=no&gl=NO&ceid=NO:no"> 🇳🇴 Norway</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=fr&gl=SN&ceid=SN:fr"> 🇸🇳 Senegal</label>
+                    <label class="checkbox-label"><input type="checkbox" class="region-cb" value="?hl=sr&gl=RS&ceid=RS:sr"> 🇷🇸 Serbia</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="setting-section">
+            <h4>Accent Ambient Glow</h4>
+            <div class="palette-grid">
+                <div class="swatch selected" data-g1="#007AFF" data-g2="#00C6FF" style="background: linear-gradient(135deg, #007AFF, #00C6FF)"></div>
+                <div class="swatch" data-g1="#A855F7" data-g2="#EC4899" style="background: linear-gradient(135deg, #A855F7, #EC4899)"></div>
+                <div class="swatch" data-g1="#9CA3AF" data-g2="#E5E7EB" style="background: linear-gradient(135deg, #9CA3AF, #E5E7EB)"></div>
+                <div class="swatch" data-g1="#F97316" data-g2="#FBBF24" style="background: linear-gradient(135deg, #F97316, #FBBF24)"></div>
+            </div>
+        </div>
+
+        <div class="setting-section">
+            <h4>Scroll Speed Dial</h4>
+            <div class="radio-dial-container">
+                <div class="radio-dial-bg"></div>
+                <input type="range" id="speedSlider" min="10" max="100" value="50">
+            </div>
+        </div>
+        
+        <button class="btn-primary" id="applySettingsBtn">Apply & Refresh</button>
+        <button class="btn-outline" id="openRssPageBtn">Manage Custom RSS</button>
+    </div>
+
+    <!-- Separate RSS Page Modal -->
+    <div id="rssPage">
+        <div class="rss-header">
+            <button class="back-btn" id="closeRssPageBtn">←</button>
+            <h2 style="font-size: 16px; font-weight: 600; color: var(--text-main); letter-spacing: 0.5px;">Custom RSS Feeds</h2>
+        </div>
+        <div class="rss-content">
+            <div class="rss-input-group">
+                <input type="url" id="customRssInput" placeholder="https://your-feed-url.xml">
+                <button id="addRssBtn">Save Feed</button>
+            </div>
+            <div class="rss-list" id="customFeedsList"></div>
+        </div>
+    </div>
+
+    <!-- Scrolling Engine -->
+    <main id="mainContainer">
+        <div id="loader">Curating stories...</div>
+        <div id="scroller" class="auto-scroll"></div>
+    </main>
+
+    <script>
+        const scroller = document.getElementById('scroller');
+        const loader = document.getElementById('loader');
+        
+        // --- Interactions & Theming ---
+        document.getElementById('themeToggleBtn').addEventListener('click', () => {
+            const isDark = document.body.classList.toggle('dark-mode');
+            if (document.body.classList.contains('reading-mode')) {
+                document.body.classList.remove('reading-mode');
+                document.getElementById('readModeBtn').classList.remove('active');
+            }
+        });
+
+        document.getElementById('readModeBtn').addEventListener('click', function() {
+            document.body.classList.toggle('reading-mode');
+            this.classList.toggle('active');
+        });
+
+        document.getElementById('settingsToggleBtn').addEventListener('click', () => {
+            document.getElementById('settingsDropdown').classList.toggle('open');
+        });
+
+        function toggleDropdown(id) { document.getElementById(id).classList.toggle('show'); }
+        document.addEventListener('click', function(e) {
+            if(!e.target.closest('.multi-select')) {
+                document.querySelectorAll('.select-content').forEach(el => el.classList.remove('show'));
+            }
+        });
+
+        // --- Color Palette Engine ---
+        document.querySelectorAll('.swatch').forEach(swatch => {
+            swatch.addEventListener('click', function() {
+                document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+                this.classList.add('selected');
+                document.documentElement.style.setProperty('--glow-1', this.dataset.g1);
+                document.documentElement.style.setProperty('--glow-2', this.dataset.g2);
+            });
+        });
+
+        // --- Speed Dial Math ---
+        document.getElementById('speedSlider').addEventListener('input', (e) => {
+            const speedDuration = 250 - (e.target.value * 2);
+            document.documentElement.style.setProperty('--anim-speed', `${speedDuration}s`);
+        });
+
+        // --- Touch Dragging ---
+        let isDragging = false, startY = 0, initialY = 0;
+        scroller.addEventListener('touchstart', (e) => {
+            isDragging = true; startY = e.touches[0].pageY;
+            const style = window.getComputedStyle(scroller);
+            initialY = new DOMMatrixReadOnly(style.transform).m42;
+            scroller.classList.remove('auto-scroll');
+            scroller.style.transform = `translateY(${initialY}px)`;
+        });
+        scroller.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            if(e.cancelable) e.preventDefault(); 
+            const deltaY = e.touches[0].pageY - startY;
+            scroller.style.transform = `translateY(${initialY + deltaY}px)`;
+        }, { passive: false });
+        scroller.addEventListener('touchend', () => {
+            isDragging = false;
+            scroller.classList.add('auto-scroll');
+            scroller.style.transform = ''; 
+        });
+
+        // --- RSS Manager Page ---
+        let customFeeds = JSON.parse(localStorage.getItem('aks_customFeeds')) || [];
+        
+        document.getElementById('openRssPageBtn').addEventListener('click', () => {
+            document.getElementById('settingsDropdown').classList.remove('open');
+            document.getElementById('rssPage').classList.add('open');
+            renderCustomFeeds();
+        });
+        
+        document.getElementById('closeRssPageBtn').addEventListener('click', () => {
+            document.getElementById('rssPage').classList.remove('open');
+            fetchNews();
+        });
+
+        function renderCustomFeeds() {
+            const list = document.getElementById('customFeedsList');
+            list.innerHTML = '';
+            customFeeds.forEach((feed, index) => {
+                const domain = new URL(feed).hostname.replace('www.', '');
+                list.innerHTML += `
+                    <div class="rss-item">
+                        <label style="color: var(--text-main);"><input type="checkbox" class="custom-feed-check" value="${feed}" checked> ${domain}</label>
+                        <button onclick="removeFeed(${index})">Remove</button>
+                    </div>
+                `;
+            });
+        }
+
+        document.getElementById('addRssBtn').addEventListener('click', () => {
+            const input = document.getElementById('customRssInput');
+            if (input.value && input.value.startsWith('http')) {
+                customFeeds.push(input.value);
+                localStorage.setItem('aks_customFeeds', JSON.stringify(customFeeds));
+                input.value = ''; renderCustomFeeds();
+            }
+        });
+
+        window.removeFeed = function(index) {
+            customFeeds.splice(index, 1);
+            localStorage.setItem('aks_customFeeds', JSON.stringify(customFeeds));
+            renderCustomFeeds();
+        };
+
+        // --- Fetching, Parsing & Media Extraction Engine ---
+        document.getElementById('applySettingsBtn').addEventListener('click', () => {
+            document.getElementById('settingsDropdown').classList.remove('open');
+            fetchNews();
+        });
+
+        function analyzeSentiment(text) {
+            const txt = text.toLowerCase();
+            const goodWords = ['win', 'good', 'success', 'growth', 'boost', 'heal', 'profit', 'award', 'soars', 'breakthrough', 'positive', 'rescue', 'celebrate'];
+            const badWords = ['crash', 'kill', 'death', 'bad', 'drop', 'fail', 'disaster', 'war', 'crisis', 'attack', 'loss', 'die', 'murder', 'threat', 'plunges', 'warning', 'negative'];
+            let score = 0;
+            goodWords.forEach(w => { if (txt.includes(w)) score++; });
+            badWords.forEach(w => { if (txt.includes(w)) score--; });
+            
+            if (score > 0) return { type: 'Good', icon: '●', class: 'sentiment-good' };
+            if (score < 0) return { type: 'Bad', icon: '●', class: 'sentiment-bad' };
+            return { type: 'Neutral', icon: '○', class: 'sentiment-neutral' };
+        }
+
+        function extractMedia(item) {
+            if (item.enclosure && item.enclosure.type && item.enclosure.type.startsWith('video/')) {
+                return { type: 'video', url: item.enclosure.link };
+            }
+            const desc = item.description || item.content || "";
+            const iframeMatch = desc.match(/<iframe[^>]+src="([^">]+)"/i);
+            if (iframeMatch && iframeMatch[1]) {
+                let url = iframeMatch[1];
+                if (url.startsWith('//')) url = 'https:' + url;
+                return { type: 'iframe', url: url };
+            }
+            const videoMatch = desc.match(/<video[^>]+src="([^">]+)"/i);
+            if (videoMatch && videoMatch[1]) {
+                return { type: 'video', url: videoMatch[1] };
+            }
+            if (item.enclosure?.link?.match(/\.(jpeg|jpg|gif|png|webp)/i)) {
+                return { type: 'image', url: item.enclosure.link };
+            }
+            const imgMatch = desc.match(/<img[^>]+src="([^">]+)"/i);
+            if (imgMatch && imgMatch[1]) {
+                return { type: 'image', url: imgMatch[1] };
+            }
+            return null; 
+        }
+
+        async function fetchNews() {
+            scroller.innerHTML = ''; loader.style.display = 'block'; scroller.classList.remove('auto-scroll');
+
+            const regions = Array.from(document.querySelectorAll('.region-cb:checked')).map(el => el.value);
+            const topics = Array.from(document.querySelectorAll('.topic-cb:checked')).map(el => el.value);
+            const customActive = Array.from(document.querySelectorAll('.custom-feed-check:checked') || []).map(el => el.value);
+
+            let urlsToFetch = [];
+            
+            if (topics.length > 0 && regions.length > 0) {
+                topics.forEach(cat => regions.forEach(reg => urlsToFetch.push(cat + reg)));
+            } else if (topics.length > 0) {
+                topics.forEach(cat => urlsToFetch.push(cat + "?hl=en-US&gl=US&ceid=US:en"));
+            }
+
+            customActive.forEach(feed => urlsToFetch.push(feed));
+            if(urlsToFetch.length === 0) { loader.innerHTML = "Select at least one Topic or Custom Feed."; return; }
+
+            const proxy = 'https://api.rss2json.com/v1/api.json?rss_url=';
+            let allItems = [];
+
+            try {
+                const responses = await Promise.all(
+                    urlsToFetch.map(url => fetch(proxy + encodeURIComponent(url)).then(res => res.json()).catch(e => null))
+                );
+
+                responses.forEach(data => { if (data && data.status === 'ok') allItems = allItems.concat(data.items); });
+
+                if (allItems.length === 0) { loader.innerHTML = "No news found."; return; }
+
+                allItems.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+                const uniqueItems = []; const titles = new Set();
+                allItems.forEach(item => { if(!titles.has(item.title)) { titles.add(item.title); uniqueItems.push(item); }});
+
+                loader.style.display = 'none';
+                renderCards(uniqueItems);
+
+            } catch (err) { loader.innerHTML = "Error loading stories."; }
+        }
+
+        function renderCards(items) {
+            let html = '';
+            items.forEach((item) => {
+                const media = extractMedia(item);
+                let mediaHtml = '';
+                
+                if (media) {
+                    if (media.type === 'video') {
+                        mediaHtml = `<video src="${media.url}" class="card-media" controls preload="metadata"></video>`;
+                    } else if (media.type === 'iframe') {
+                        mediaHtml = `<iframe src="${media.url}" class="card-media" allowfullscreen></iframe>`;
+                    } else if (media.type === 'image') {
+                        mediaHtml = `<a href="${item.link}" target="_blank"><img src="${media.url}" class="card-media" alt="Visual"></a>`;
+                    }
+                }
+
+                const dateObj = new Date(item.pubDate);
+                const source = item.author || extractDomain(item.link) || 'News Source';
+                const sentiment = analyzeSentiment(item.title + " " + item.description);
+
+                html += `
+                    <div class="card-wrapper type-${sentiment.type}">
+                        <div class="news-card">
+                            ${mediaHtml}
+                            <a href="${item.link}" target="_blank" style="text-decoration:none; color:inherit; display:block;">
+                                <div class="card-body">
+                                    <h3>${item.title}</h3>
+                                    <p>${stripHtml(item.description)}</p>
+                                    
+                                    <div class="card-meta-line">
+                                        <span class="meta-badge ${sentiment.class}">${sentiment.icon} ${sentiment.type}</span>
+                                        <span class="meta-dot">•</span>
+                                        <span class="meta-source">${source}</span>
+                                        <span class="meta-dot">•</span>
+                                        <span class="meta-date-time">${dateObj.toLocaleDateString([], { month: 'short', day: 'numeric'})}</span>
+                                        <span class="meta-dot">•</span>
+                                        <span class="meta-date-time">${dateObj.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                                    </div>
+                                    
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            scroller.innerHTML = html + html; 
+            
+            scroller.querySelectorAll('video').forEach(vid => {
+                vid.addEventListener('play', () => scroller.classList.remove('auto-scroll'));
+                vid.addEventListener('pause', () => scroller.classList.add('auto-scroll'));
+                vid.addEventListener('ended', () => scroller.classList.add('auto-scroll'));
+            });
+            
+            void scroller.offsetWidth;
+            scroller.classList.add('auto-scroll');
+        }
+
+        function stripHtml(html) { return new DOMParser().parseFromString(html, 'text/html').body.textContent.replace(/View Full Coverage on Google News/gi, '').trim(); }
+        function extractDomain(url) { try { return new URL(url).hostname.replace('www.', ''); } catch(e) { return null; } }
+
+        // Start App
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.body.classList.add('dark-mode'); 
+        }
+        fetchNews(); setInterval(fetchNews, 300000); 
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker
+                    .register('./sw.js')
+                    .then(registration => {
+                        console.log(
+                            'Service Worker registered:',
+                            registration.scope
+                        );
+                    })
+                    .catch(error => {
+                        console.error(
+                            'Service Worker registration failed:',
+                            error
+                        );
+                    });
+            });
+        }
+
+    </script>
+</body>
+</html>
